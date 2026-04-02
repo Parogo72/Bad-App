@@ -86,9 +86,35 @@ En producción, si defines `ALERT_CHECK_SECRET`, envía:
 
 Puedes pasar opcionalmente un `query` en JSON para comprobar solo un jugador.
 
-## Ejecución gratuita programada
+## Notificaciones automáticas en producción
 
-Para hacerlo gratis, programa un cron en GitHub Actions que llame al endpoint `POST /api/push/check-changes` cada 10-15 minutos.
+Al desplegar en Vercel, las notificaciones se comprueban automáticamente **cada 15 minutos** sin necesidad de configuración manual.
+
+- El archivo `.vercel/crons.json` hace que Vercel ejecute automáticamente `/api/push/check-changes` cada 15 minutos.
+- Las claves VAPID se generan automáticamente si no las defines en env variables.
+- Las suscripciones se persisten en Redis (si configuras KV) o en `/tmp` (menos persistente pero funciona).
+
+### Alternativa: GitHub Actions (opcional)
+
+Si prefieres usar GitHub Actions en lugar de Vercel Crons, crea `.github/workflows/push-alerts.yml`:
+
+```yaml
+name: Check Tournament Changes
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+jobs:
+  check-changes:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check push alert changes
+        run: |
+          curl -X POST \
+            -H "Content-Type: application/json" \
+            -d '{}' \
+            https://tu-dominio-vercel.vercel.app/api/push/check-changes
+```
 
 ## Despliegue en Vercel
 
@@ -97,23 +123,29 @@ Para hacerlo gratis, programa un cron en GitHub Actions que llame al endpoint `P
 1. Sube el proyecto a GitHub.
 2. En Vercel, importa el repositorio.
 3. En `Root Directory`, selecciona `bad_app`.
-4. Añade variables de entorno en Vercel (Project Settings -> Environment Variables):
+4. (Opcional) Añade variables de entorno en Vercel para más control:
+
+Si quieres usar claves VAPID fijas y Redis persistente:
 
 ```env
 VAPID_SUBJECT=mailto:tu-email@dominio.com
-ALERT_CHECK_SECRET=una-clave-larga-opcional
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=TU_PUBLIC_KEY
 VAPID_PRIVATE_KEY=TU_PRIVATE_KEY
 KV_REST_API_URL=...
 KV_REST_API_TOKEN=...
 ```
 
+Si las dejas vacías, la app genera las claves automáticamente y usa `/tmp`.
+
 5. Despliega.
 
 ### Nota importante sobre alertas push en Vercel
 
-- Esta app ya guarda suscripciones/snapshots en Redis (Vercel KV/Upstash) cuando detecta `KV_REST_API_URL` y `KV_REST_API_TOKEN` (o variables `UPSTASH_REDIS_*`).
-- Si no hay Redis configurado, usa fallback en archivo local (`/tmp` en Vercel o `data/` en local). Ese fallback no es persistente en producción.
+**Recomendación:** Conecta Upstash Redis desde el dashboard de Vercel (1 click → automáticamente crea `KV_REST_API_*` env vars) para que las suscripciones persistan.
+
+Sin Redis, las suscripciones se pierden cada vez que Vercel reinicia el servidor (raro pero posible).
+
+Con Redis, todo funciona de manera confiable.
 
 ## Build
 

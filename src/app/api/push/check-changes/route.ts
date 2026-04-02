@@ -3,8 +3,11 @@ import { checkAndNotifyTournamentChanges } from "@/lib/push-alerts";
 
 function isAuthorized(request: NextRequest) {
   const secret = process.env.ALERT_CHECK_SECRET;
-  if (!secret) return process.env.NODE_ENV !== "production";
+  
+  // Allow without secret in development or on Vercel Crons (no secret configured)
+  if (!secret) return true;
 
+  // Require secret if one is configured
   const headerSecret = request.headers.get("x-alert-secret");
   const querySecret = request.nextUrl.searchParams.get("secret");
   return headerSecret === secret || querySecret === secret;

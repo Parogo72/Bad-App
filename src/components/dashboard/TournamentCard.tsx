@@ -104,7 +104,7 @@ export function TournamentCard({
             ))}
           </div>
 
-          {activeDrawUrl && activeDraw ? <DrawPanel draw={activeDraw} playerName={playerName} /> : null}
+          {activeDrawUrl && activeDraw ? <DrawPanel key={activeDrawUrl} draw={activeDraw} playerName={playerName} /> : null}
         </div>
       ) : null}
     </div>
