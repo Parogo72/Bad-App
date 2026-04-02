@@ -178,7 +178,7 @@ export default function Home() {
         />
       ) : null}
 
-      <main className={`mx-auto flex w-full max-w-5xl flex-col gap-8 px-4 py-8 md:px-8 md:py-12 ${data ? "pt-32 md:pt-36" : ""}`}>
+      <main className={`mx-auto flex w-full max-w-5xl flex-col gap-4 px-3 py-6 sm:gap-6 sm:px-4 sm:py-8 md:gap-8 md:px-8 md:py-12 ${data ? "pt-24 sm:pt-28 md:pt-36" : ""}`}>
         {!data ? (
           <LoginCard
             txt={txt}

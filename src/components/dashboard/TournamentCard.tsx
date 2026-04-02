@@ -40,8 +40,8 @@ export function TournamentCard({
     <div className="tournament-card rounded-xl p-4">
       <div className="tournament-head">
         <div>
-          <h3 className="text-xl font-bold">{tournament.name}</h3>
-          <p className="text-sm text-stone-300">{tournament.location || "Ubicación pendiente"}</p>
+          <h3 className="text-base sm:text-lg md:text-xl font-bold">{tournament.name}</h3>
+          <p className="text-xs sm:text-sm text-stone-300">{tournament.location || "Ubicación pendiente"}</p>
           <div className="tournament-meta">
             <p className="status-pill inline-block rounded-full bg-cyan-400/20 px-3 py-1 text-xs font-bold text-cyan-100">
               {txt.status}: {tournament.status}

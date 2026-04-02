@@ -11,11 +11,11 @@ type ProfileViewProps = {
 export function ProfileView({ data, txt, renderExternalLabel }: ProfileViewProps) {
   return (
     <>
-      <article className="info-card animate-rise-delay rounded-2xl p-5 md:col-span-2">
-        <p className="card-label">{txt.player}</p>
-        <h2 className="mt-2 text-2xl font-extrabold">{data.playerName ?? "Perfil sin nombre"}</h2>
-        <p className="mt-2 text-sm text-stone-300">Consulta: {data.query}</p>
-        <p className="mt-1 text-sm text-stone-300">Perfil: {data.resolvedProfileId ?? "No resuelto"}</p>
+      <article className="info-card animate-rise-delay rounded-xl sm:rounded-2xl md:col-span-2">
+        <p className="card-label text-xs sm:text-sm">{txt.player}</p>
+        <h2 className="mt-2 text-lg sm:text-2xl font-extrabold">{data.playerName ?? "Perfil sin nombre"}</h2>
+        <p className="mt-2 text-xs sm:text-sm text-stone-300">Consulta: {data.query}</p>
+        <p className="mt-1 text-xs sm:text-sm text-stone-300">Perfil: {data.resolvedProfileId ?? "No resuelto"}</p>
         <div className="mt-4 flex flex-wrap gap-2">
           {data.profileOverviewUrl ? (
             <a href={data.profileOverviewUrl} target="_blank" rel="noreferrer" className="chip-link">
