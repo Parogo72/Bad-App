@@ -1,36 +1,103 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Badminton Dashboard
 
-## Getting Started
+Panel personal para consultar torneos, partidos, cuadros y ranking en badminton.es.
 
-First, run the development server:
+## Desarrollo local
 
 ```bash
+npm install
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Abre `http://localhost:3000`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Notificaciones Web Push
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+El proyecto incluye alertas push para cambios de torneo:
 
-## Learn More
+- Cuando pasa de cuadros pendientes a cuadros publicados.
+- Cuando pasas de no inscrito a inscrito.
 
-To learn more about Next.js, take a look at the following resources:
+### 1) Claves VAPID (automático o manual)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Modo automático (recomendado para local):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+- Si no defines claves en `.env.local`, la app las genera automáticamente en `data/vapid-keys.json` al primer uso.
 
-## Deploy on Vercel
+Modo manual (recomendado para producción estable):
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Ejecuta:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+node -e "const w=require('web-push'); console.log(w.generateVAPIDKeys())"
+```
+
+### 2) Configurar variables de entorno
+
+Crea `.env.local` con:
+
+```env
+VAPID_SUBJECT=mailto:tu-email@dominio.com
+ALERT_CHECK_SECRET=una-clave-larga-opcional
+```
+
+Si quieres fijar claves manuales en producción, añade también:
+
+```env
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=TU_PUBLIC_KEY
+VAPID_PRIVATE_KEY=TU_PRIVATE_KEY
+```
+
+### 3) Activar desde el perfil
+
+En la vista de perfil:
+
+- Activa notificaciones web.
+- Envía una notificación de prueba.
+
+### 4) Ejecutar comprobación de cambios
+
+Endpoint:
+
+`POST /api/push/check-changes`
+
+En producción, si defines `ALERT_CHECK_SECRET`, envía:
+
+- Header `x-alert-secret: <secret>`
+	o
+- Query param `?secret=<secret>`
+
+Puedes pasar opcionalmente un `query` en JSON para comprobar solo un jugador.
+
+## Ejecución gratuita programada
+
+Para hacerlo gratis, programa un cron en GitHub Actions que llame al endpoint `POST /api/push/check-changes` cada 10-15 minutos.
+
+## Despliegue en Vercel
+
+### Pasos rápidos
+
+1. Sube el proyecto a GitHub.
+2. En Vercel, importa el repositorio.
+3. En `Root Directory`, selecciona `bad_app`.
+4. Añade variables de entorno en Vercel (Project Settings -> Environment Variables):
+
+```env
+VAPID_SUBJECT=mailto:tu-email@dominio.com
+ALERT_CHECK_SECRET=una-clave-larga-opcional
+NEXT_PUBLIC_VAPID_PUBLIC_KEY=TU_PUBLIC_KEY
+VAPID_PRIVATE_KEY=TU_PRIVATE_KEY
+```
+
+5. Despliega.
+
+### Nota importante sobre alertas push en Vercel
+
+- En Vercel, el sistema de archivos es efímero. Esta app usa `/tmp/bad-app-data` para evitar errores de escritura, pero esos datos no son persistentes.
+- Para alertas push estables en producción (suscripciones y snapshots), mueve ese almacenamiento a una base persistente (por ejemplo, Vercel KV, Postgres o Supabase).
+
+## Build
+
+```bash
+npm run build
+```
