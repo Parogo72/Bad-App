@@ -48,6 +48,23 @@ NEXT_PUBLIC_VAPID_PUBLIC_KEY=TU_PUBLIC_KEY
 VAPID_PRIVATE_KEY=TU_PRIVATE_KEY
 ```
 
+Persistencia de alertas en producción (recomendada):
+
+- Conecta una integración de Redis en Vercel (Upstash/Vercel KV).
+- Añade las variables que te cree la integración:
+
+```env
+KV_REST_API_URL=...
+KV_REST_API_TOKEN=...
+```
+
+Compatibilidad adicional (si tu integración expone estos nombres):
+
+```env
+UPSTASH_REDIS_REST_URL=...
+UPSTASH_REDIS_REST_TOKEN=...
+```
+
 ### 3) Activar desde el perfil
 
 En la vista de perfil:
@@ -87,14 +104,16 @@ VAPID_SUBJECT=mailto:tu-email@dominio.com
 ALERT_CHECK_SECRET=una-clave-larga-opcional
 NEXT_PUBLIC_VAPID_PUBLIC_KEY=TU_PUBLIC_KEY
 VAPID_PRIVATE_KEY=TU_PRIVATE_KEY
+KV_REST_API_URL=...
+KV_REST_API_TOKEN=...
 ```
 
 5. Despliega.
 
 ### Nota importante sobre alertas push en Vercel
 
-- En Vercel, el sistema de archivos es efímero. Esta app usa `/tmp/bad-app-data` para evitar errores de escritura, pero esos datos no son persistentes.
-- Para alertas push estables en producción (suscripciones y snapshots), mueve ese almacenamiento a una base persistente (por ejemplo, Vercel KV, Postgres o Supabase).
+- Esta app ya guarda suscripciones/snapshots en Redis (Vercel KV/Upstash) cuando detecta `KV_REST_API_URL` y `KV_REST_API_TOKEN` (o variables `UPSTASH_REDIS_*`).
+- Si no hay Redis configurado, usa fallback en archivo local (`/tmp` en Vercel o `data/` en local). Ese fallback no es persistente en producción.
 
 ## Build
 

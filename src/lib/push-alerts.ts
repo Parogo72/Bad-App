@@ -1,5 +1,6 @@
 import { promises as fs } from "node:fs";
 import path from "node:path";
+import { Redis } from "@upstash/redis";
 import webpush from "web-push";
 import { getPlayerDashboard } from "@/lib/badminton";
 
@@ -31,12 +32,100 @@ const DATA_DIR = process.env.VERCEL
   : path.join(process.cwd(), "data");
 const PUSH_STATE_FILE = path.join(DATA_DIR, "push-alerts.json");
 const VAPID_KEYS_FILE = path.join(DATA_DIR, "vapid-keys.json");
+const PUSH_STATE_KV_KEY = "bad-app:push-state:v1";
+const VAPID_KEYS_KV_KEY = "bad-app:vapid-keys:v1";
 
 type VapidConfig = {
   publicKey: string;
   privateKey: string;
   subject: string;
 };
+
+function canUseKvStorage() {
+  return Boolean(
+    (process.env.KV_REST_API_URL && process.env.KV_REST_API_TOKEN) ||
+      (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN),
+  );
+}
+
+let redisClient: Redis | null | undefined;
+
+function getRedisClient() {
+  if (redisClient !== undefined) return redisClient;
+
+  const url = process.env.KV_REST_API_URL ?? process.env.UPSTASH_REDIS_REST_URL;
+  const token = process.env.KV_REST_API_TOKEN ?? process.env.UPSTASH_REDIS_REST_TOKEN;
+
+  if (!url || !token) {
+    redisClient = null;
+    return redisClient;
+  }
+
+  redisClient = new Redis({ url, token });
+  return redisClient;
+}
+
+function isValidState(value: unknown): value is PushStateFile {
+  if (!value || typeof value !== "object") return false;
+
+  const parsed = value as {
+    subscriptions?: unknown;
+    snapshots?: unknown;
+  };
+
+  return Array.isArray(parsed.subscriptions) && Boolean(parsed.snapshots) && typeof parsed.snapshots === "object";
+}
+
+async function readStateFromKv(): Promise<PushStateFile | null> {
+  if (!canUseKvStorage()) return null;
+
+  try {
+    const redis = getRedisClient();
+    if (!redis) return null;
+
+    const state = await redis.get<PushStateFile>(PUSH_STATE_KV_KEY);
+    if (state && isValidState(state)) return state;
+
+    const initial: PushStateFile = { subscriptions: [], snapshots: {} };
+    await redis.set(PUSH_STATE_KV_KEY, initial);
+    return initial;
+  } catch {
+    return null;
+  }
+}
+
+async function writeStateToKv(state: PushStateFile): Promise<boolean> {
+  if (!canUseKvStorage()) return false;
+
+  try {
+    const redis = getRedisClient();
+    if (!redis) return false;
+    await redis.set(PUSH_STATE_KV_KEY, state);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function ensureVapidKeysFromKv(): Promise<{ publicKey: string; privateKey: string } | null> {
+  if (!canUseKvStorage()) return null;
+
+  try {
+    const redis = getRedisClient();
+    if (!redis) return null;
+
+    const existing = await redis.get<{ publicKey?: string; privateKey?: string }>(VAPID_KEYS_KV_KEY);
+    if (existing?.publicKey && existing.privateKey) {
+      return { publicKey: existing.publicKey, privateKey: existing.privateKey };
+    }
+
+    const generated = webpush.generateVAPIDKeys();
+    await redis.set(VAPID_KEYS_KV_KEY, generated);
+    return generated;
+  } catch {
+    return null;
+  }
+}
 
 async function ensureVapidKeysFile(): Promise<{ publicKey: string; privateKey: string }> {
   await fs.mkdir(DATA_DIR, { recursive: true });
@@ -68,6 +157,15 @@ async function getVapidConfig(): Promise<VapidConfig> {
 
   if (publicKey && privateKey) {
     return { publicKey, privateKey, subject };
+  }
+
+  const keysFromKv = await ensureVapidKeysFromKv();
+  if (keysFromKv?.publicKey && keysFromKv.privateKey) {
+    return {
+      publicKey: keysFromKv.publicKey,
+      privateKey: keysFromKv.privateKey,
+      subject,
+    };
   }
 
   const generated = await ensureVapidKeysFile();
@@ -104,6 +202,9 @@ async function ensureStoreFile() {
 }
 
 async function readState(): Promise<PushStateFile> {
+  const kvState = await readStateFromKv();
+  if (kvState) return kvState;
+
   await ensureStoreFile();
   const raw = await fs.readFile(PUSH_STATE_FILE, "utf8");
   try {
@@ -120,6 +221,9 @@ async function readState(): Promise<PushStateFile> {
 }
 
 async function writeState(state: PushStateFile) {
+  const kvWritten = await writeStateToKv(state);
+  if (kvWritten) return;
+
   await ensureStoreFile();
   await fs.writeFile(PUSH_STATE_FILE, JSON.stringify(state, null, 2), "utf8");
 }
