@@ -14,7 +14,7 @@ const STORAGE_LANGUAGE = "bad_app.language";
 const STORAGE_THEME = "bad_app.theme";
 
 export default function Home() {
-  const [query, setQuery] = useState("18228");
+  const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [data, setData] = useState<DashboardResponse | null>(null);
